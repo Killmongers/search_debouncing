@@ -2,80 +2,120 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Station Search</title>
+  <title>Notes App</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 2rem;
-      background-color: #f9f9f9;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
     }
-    input {
+    input, textarea, button {
+      display: block;
+      margin: 10px 0;
       width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 16px;
+      padding: 8px;
     }
-    ul {
-      list-style-type: none;
-      padding: 0;
-      margin-top: 20px;
+    img {
+      max-width: 200px;
+      margin: 10px 0;
     }
-    li {
-      background-color: #fff;
-      margin-bottom: 10px;
-      padding: 12px;
-      border-radius: 5px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .code {
-      font-weight: bold;
-      color: #007acc;
+    .note {
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-bottom: 15px;
     }
   </style>
 </head>
 <body>
-  <h1>Search Stations</h1>
-  <input type="text" id="searchInput" placeholder="Start typing a station name or code..." />
-  <ul id="results"></ul>
+  <h1>Notes App</h1>
+
+  <input type="text" id="search" placeholder="Search notes..." />
+
+  <form id="noteForm">
+    <input type="hidden" id="noteId" />
+    <label>Title: <input type="text" id="title" required /></label>
+    <label>Content: <textarea id="content" required></textarea></label>
+    <label>Image: <input type="file" id="image" accept="image/*" /></label>
+    <button type="submit">Save</button>
+  </form>
+
+  <div id="notesList"></div>
 
   <script>
-    const input = document.getElementById("searchInput");
-    const resultsList = document.getElementById("results");
+    const form = document.getElementById("noteForm");
+    const searchInput = document.getElementById("search");
+    const notesList = document.getElementById("notesList");
+    const baseUrl = "https://search-debouncing.onrender.com/notes";
 
-    let debounceTimer;
+    async function fetchNotes() {
+      const res = await fetch(`${baseUrl}/search`);
+      const notes = await res.json();
+      renderNotes(notes);
+    }
 
-    input.addEventListener("input", () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        const query = input.value.trim();
-        if (query.length === 0) {
-          resultsList.innerHTML = "";
-          return;
-        }
+    function renderNotes(notes) {
+      notesList.innerHTML = "";
+      notes.forEach(note => {
+        const div = document.createElement("div");
+        div.className = "note";
+        div.innerHTML = `
+          <h3>${note.title}</h3>
+          <p>${note.content}</p>
+          ${note.image_url ? `<img src="https://search-debouncing.onrender.com${note.image_url}" />` : ""}
+          <button onclick="editNote(${note.id})">Edit</button>
+          <button onclick="deleteNote(${note.id})">Delete</button>
+        `;
+        notesList.appendChild(div);
+      });
+    }
 
-        fetch(`https://search-debouncing.onrender.com/stations/search?q=${encodeURIComponent(query)}`)
-          .then((response) => response.json())
-          .then((data) => {
-            resultsList.innerHTML = "";
-            if (data.length === 0) {
-              resultsList.innerHTML = "<li>No results found</li>";
-              return;
-            }
-            data.forEach((station) => {
-              const li = document.createElement("li");
-              li.innerHTML = `<span class="code">${station.code}</span>: ${station.station}`;
-              resultsList.appendChild(li);
-            });
-          })
-          .catch((err) => {
-            console.error("Error fetching stations:", err);
-            resultsList.innerHTML = "<li>Error fetching results</li>";
-          });
-      }, 400); // Wait 400ms after user stops typing
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append("title", document.getElementById("title").value);
+      formData.append("content", document.getElementById("content").value);
+      const image = document.getElementById("image").files[0];
+      if (image) formData.append("image", image);
+
+      const noteId = document.getElementById("noteId").value;
+      const url = noteId ? `${baseUrl}/update/${noteId}` : `${baseUrl}/add`;
+      const method = noteId ? "PUT" : "POST";
+
+      await fetch(url, { method, body: formData });
+
+      form.reset();
+      document.getElementById("noteId").value = "";
+      fetchNotes();
     });
+
+    async function deleteNote(id) {
+      await fetch(`${baseUrl}/delete/${id}`, { method: "DELETE" });
+      fetchNotes();
+    }
+
+    async function editNote(id) {
+      const res = await fetch(`${baseUrl}/search`);
+      const notes = await res.json();
+      const note = notes.find(n => n.id === id);
+      document.getElementById("noteId").value = note.id;
+      document.getElementById("title").value = note.title;
+      document.getElementById("content").value = note.content;
+    }
+
+    let debounce;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(async () => {
+        const query = searchInput.value.toLowerCase();
+        const res = await fetch(`${baseUrl}/search`);
+        const notes = await res.json();
+        const filtered = notes.filter(n => n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query));
+        renderNotes(filtered);
+      }, 300);
+    });
+
+    fetchNotes();
   </script>
 </body>
 </html>
-
