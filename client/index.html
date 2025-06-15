@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Station Search</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background-color: #f9f9f9;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+      margin-top: 20px;
+    }
+    li {
+      background-color: #fff;
+      margin-bottom: 10px;
+      padding: 12px;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .code {
+      font-weight: bold;
+      color: #007acc;
+    }
+  </style>
+</head>
+<body>
+  <h1>Search Stations</h1>
+  <input type="text" id="searchInput" placeholder="Start typing a station name or code..." />
+  <ul id="results"></ul>
+
+  <script>
+    const input = document.getElementById("searchInput");
+    const resultsList = document.getElementById("results");
+
+    let debounceTimer;
+
+    input.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const query = input.value.trim();
+        if (query.length === 0) {
+          resultsList.innerHTML = "";
+          return;
+        }
+
+        fetch(`http://localhost:8000/stations/search?q=${encodeURIComponent(query)}`)
+          .then((response) => response.json())
+          .then((data) => {
+            resultsList.innerHTML = "";
+            if (data.length === 0) {
+              resultsList.innerHTML = "<li>No results found</li>";
+              return;
+            }
+            data.forEach((station) => {
+              const li = document.createElement("li");
+              li.innerHTML = `<span class="code">${station.code}</span>: ${station.station}`;
+              resultsList.appendChild(li);
+            });
+          })
+          .catch((err) => {
+            console.error("Error fetching stations:", err);
+            resultsList.innerHTML = "<li>Error fetching results</li>";
+          });
+      }, 400); // Wait 400ms after user stops typing
+    });
+  </script>
+</body>
+</html>
+
