@@ -43,15 +43,19 @@
   <div id="notesList"></div>
 
   <script>
+    const baseUrl = "https://search-debouncing.onrender.com/notes";
     const form = document.getElementById("noteForm");
     const searchInput = document.getElementById("search");
     const notesList = document.getElementById("notesList");
-    const baseUrl = "https://search-debouncing.onrender.com/notes";
 
     async function fetchNotes() {
-      const res = await fetch(`${baseUrl}/search`);
-      const notes = await res.json();
-      renderNotes(notes);
+      try {
+        const res = await fetch(`${baseUrl}/search`);
+        const notes = await res.json();
+        renderNotes(notes);
+      } catch (err) {
+        console.error("Error fetching notes:", err);
+      }
     }
 
     function renderNotes(notes) {
@@ -62,7 +66,7 @@
         div.innerHTML = `
           <h3>${note.title}</h3>
           <p>${note.content}</p>
-          ${note.image_url ? `<img src="https://search-debouncing.onrender.com${note.image_url}" />` : ""}
+          ${note.image_url ? `<img src="${note.image_url}" />` : ""}
           <button onclick="editNote(${note.id})">Edit</button>
           <button onclick="deleteNote(${note.id})">Delete</button>
         `;
@@ -110,7 +114,11 @@
         const query = searchInput.value.toLowerCase();
         const res = await fetch(`${baseUrl}/search`);
         const notes = await res.json();
-        const filtered = notes.filter(n => n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query));
+        const filtered = notes.filter(
+          n =>
+            n.title.toLowerCase().includes(query) ||
+            n.content.toLowerCase().includes(query)
+        );
         renderNotes(filtered);
       }, 300);
     });
